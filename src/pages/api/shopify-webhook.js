@@ -1,6 +1,9 @@
 // src/pages/api/shopify-webhook.js
 import { supabase } from '../../../lib/supabase';
 
+console.log("Shopify Webhook Received");
+console.log(await request.text());
+
 export default async function handler(req, res) {
   if (req.method === 'POST') {
     const order = req.body;
