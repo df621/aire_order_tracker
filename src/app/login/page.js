@@ -20,24 +20,81 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ padding: '40px', maxWidth: '400px', margin: 'auto' }}>
-      <h2>Login</h2>
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        style={{ display: 'block', marginBottom: '10px', width: '100%' }}
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100vh',
+      padding: '20px',
+      backgroundColor: '#f9fafb'
+    }}>
+      <img
+        src="https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images//aire-logo-transparent.png"
+        alt="Aire Logo"
+        style={{ width: '250px', marginBottom: '40px' }}
       />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={{ display: 'block', marginBottom: '10px', width: '100%' }}
-      />
-      <button onClick={handleLogin}>Login</button>
-      {errorMsg && <p style={{ color: 'red' }}>{errorMsg}</p>}
+
+      <div style={{
+        width: '100%',
+        maxWidth: '400px',
+        backgroundColor: 'white',
+        padding: '30px',
+        borderRadius: '12px',
+        boxShadow: '0 4px 10px rgba(0,0,0,0.05)'
+      }}>
+        <h2 style={{ marginBottom: '20px', textAlign: 'center', color: '#111827' }}>Iniciar sesión</h2>
+
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '12px',
+            borderRadius: '8px',
+            border: '1px solid #d1d5db',
+            marginBottom: '12px'
+          }}
+        />
+
+        <input
+          type="password"
+          placeholder="Contraseña"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '12px',
+            borderRadius: '8px',
+            border: '1px solid #d1d5db',
+            marginBottom: '20px'
+          }}
+        />
+
+        <button
+          onClick={handleLogin}
+          style={{
+            width: '100%',
+            padding: '12px',
+            backgroundColor: '#10b981',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontWeight: 'bold',
+            cursor: 'pointer'
+          }}
+        >
+          Entrar
+        </button>
+
+        {errorMsg && (
+          <p style={{ color: 'red', marginTop: '12px', textAlign: 'center' }}>
+            {errorMsg}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

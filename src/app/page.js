@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../lib/supabase';
 
-const STAGES_ALL = ['➕', 'Ver Todo', 'Taller', 'Traslado', 'Embalaje', 'Envío'];
+const STAGES_ALL = [/*'➕', */'Ver Todo', 'Taller', 'Traslado', 'Embalaje', 'Envío'];
 
 const STAGES_BY_ROLE = {
   Admin: STAGES_ALL,
@@ -16,15 +16,40 @@ const ringImageUrls = {
   "Boreas": "https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images/Boreas.png",
   "Galerno": "https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images/Galerno.png",
   "Plasma": "https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images/Plasma.png",
-  "Ecos": "https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images/Ecos.png"
+  "Ecos": "https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images/Ecos.png",
+  "Aquilo": "https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images/Aquilo.png",
+  "Coriolis": "https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images/Coriolis.png",
+  "Eterno": "https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images/Eterno.png",
+  "Poniente": "https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images/Poniente.png",
+  "Soplo": "https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images/Soplo.png",
+  "Susurro": "https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images/Susurro.png"
 };
 
 const ringStoneDefaults = {
-  "Galerno": { count: 1, oro: ["Amatista"], plata: ["Amatista"] },
+  "Galerno": { count: 1, oro: ["Prehennite"], plata: ["Prehennite"] },
   "Boreas": { count: 2, oro: ["Zafiro", "Aguamarina"], plata: ["Zafiro", "Aguamarina"] },
   "Plasma": { count: 1, oro: ["Peridoto"], plata: ["Zafiro"] },
-  "Ecos": { count: 0 } // no stones
+  "Ecos": { count: 0 }, // no stones
+  "Aquilo": { count: 2, oro: ["Peridoto", "Amatista"], plata: ["Peridoto", "Amatista"] },
+  "Coriolis": { count: 1, oro: ["Granate"], plata: ["Granate"] },
+  "Eterno": { count: 1, oro: ["Blanco"], plata: ["Blanco"] },
+  "Poniente": { count: 1, oro: ["Naranja"], plata: ["Naranja"] },
+  "Soplo": { count: 1, oro: ["Amatista"], plata: ["Zafiro"] },
+  "Susurro": { count: 1, oro: ["Aguamarina"], plata: ["Zafiro"] }
 };
+
+const ringReference = {
+  "Galerno": "001",
+  "Boreas": "005",
+  "Plasma": "006",
+  "Ecos": "003", // no stones
+  "Aquilo": "005",
+  "Coriolis": "007",
+  "Eterno": "009",
+  "Poniente": "002",
+  "Soplo": "008",
+  "Susurro": "004"
+}
 
 export default function OrderList() {
   const [orders, setOrders] = useState([]);
@@ -50,9 +75,26 @@ export default function OrderList() {
     await supabase.auth.signOut();
     window.location.reload(); // or redirect if using routing
   };
+  
+  const [inventory, setInventory] = useState([]);
+
+  const fetchInventory = async () => {
+    const { data, error } = await supabase.from('inventory').select('*');
+    if (!error) setInventory(data || []);
+  };
+  
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
+  const [inventoryForm, setInventoryForm] = useState({
+    ring_model: '',
+    ring_size: '',
+    ring_coating: '',
+    ring_stone: ''
+  });
+
 
   useEffect(() => {
     fetchOrders();
+    fetchInventory();
   }, []);
   
   useEffect(() => {
@@ -125,16 +167,39 @@ export default function OrderList() {
     }
   };
 
-  const getUrgencyClass = (date) => {
+  const getUrgencyClass = (date,status) => {
     const days = (new Date() - new Date(date)) / (1000 * 60 * 60 * 24);
-    if (days > 4) return 'date-badge red';
-    if (days > 2) return 'date-badge yellow';
+    if (status === 'Completado'){
+      return 'date-badge blue';
+    }
+    if (days > 15) return 'date-badge red';
+    if (days > 7) return 'date-badge yellow';
     return 'date-badge green';
   };
 
   const addOrder = async () => {
     if (formData.ring_name === '-' || formData.ring_size === '-' || !formData.customer_ref) return;
 
+    const ring_model = formData.ring_name;
+    const ring_coating = formData.ring_coating;
+    const coatingKey = ring_coating.toLowerCase();
+    const defaults = ringStoneDefaults[ring_model]?.[coatingKey] || [];
+    const count = ringStoneDefaults[ring_model]?.count || 0;
+  
+    const stones = [];
+    if (count >= 1) stones.push(formData.ring_stone_1 || defaults[0]);
+    if (count >= 2) stones.push(formData.ring_stone_2 || defaults[1]);
+  
+    const ring_stone = stones.join(" & ");
+  
+    // 🔎 Step 4: Check inventory
+    const matchingItem = inventory.find(item =>
+      item.ring_model === ring_model &&
+      item.ring_size === formData.ring_size &&
+      item.ring_coating === ring_coating &&
+      item.ring_stone === ring_stone
+    );
+    
     const today = new Date(formData.order_date);
     const ddmm = ("0" + today.getDate()).slice(-2) + ("0" + (today.getMonth() + 1)).slice(-2);
 
@@ -142,19 +207,61 @@ export default function OrderList() {
       new Date(order.order_date).toDateString() === today.toDateString()
     ).length;
 
-    const ring_ref = formData.ring_name.slice(0,3).toUpperCase() + ddmm + ("0" + (todaysOrders + 1)).slice(-2);
+    const ring_ref = ringReference[formData.ring_name].slice(0,3)+ "/" + ddmm + ("0" + (todaysOrders + 1)).slice(-2);
     const image_url = ringImageUrls[formData.ring_name];
+  
+    if (matchingItem) {
+      const newOrder = {
+        ring_model,
+        ring_size: formData.ring_size,
+        customer_ref: formData.customer_ref,
+        order_date: formData.order_date,
+        stage: 'Embalaje',
+        status: 'Recibido',
+        ring_ref,
+        image_url,
+        ring_coating,
+        ring_stone
+      };
     
-    const ring_model = formData.ring_name;
-    const ring_coating = formData.ring_coating;
-    const defaults = ringStoneDefaults[ring_model]?.[ring_coating?.toLowerCase()] || [];
-    const count = ringStoneDefaults[ring_model]?.count || 0;
+      const { error: insertError } = await supabase
+        .from('orders')
+        .insert([newOrder]);
     
-    const stones = [];
-    if (count >= 1) stones.push(formData.ring_stone_1 || defaults[0]);
-    if (count >= 2) stones.push(formData.ring_stone_2 || defaults[1]);
-
-    const ring_stone = stones.join(" & ");
+      if (insertError) {
+        console.error("❌ Failed to insert inventory order:", insertError.message);
+        alert("❌ Failed to place order from inventory.");
+        return;
+      }
+    
+      const { error: deleteError } = await supabase
+        .from('inventory')
+        .delete()
+        .eq('id', matchingItem.id);
+    
+      if (deleteError) {
+        console.warn("⚠️ Order inserted but inventory item not deleted:", deleteError.message);
+      }
+    
+      alert("📦 Inventory item used for this order.");
+      fetchOrders();
+      fetchInventory();
+    
+      setFormData({
+        ring_name: '-',
+        ring_size: '-',
+        customer_ref: '',
+        order_date: new Date().toISOString().split('T')[0],
+        stage: 'Taller',
+        status: 'Pendiente',
+        ring_coating: '-',
+        ring_stone_1: '',
+        ring_stone_2: ''
+      });
+    
+      setActiveStage('Ver Todo');
+      return;
+    }
 
     const newOrder = {
       ring_model: formData.ring_name, // Corrected key
@@ -193,6 +300,31 @@ export default function OrderList() {
 
   };
   
+  const handleReportFault = async (order) => {
+    const confirm = window.confirm("¿Estás seguro de que quieres reportar este pedido como erróneo?");
+    if (!confirm) return;
+  
+    // Send back to jeweller
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({ stage: 'Taller', status: 'Pendiente', faulty_returned: true })
+      .eq('id', order.id);
+  
+    if (updateError) {
+      alert("❌ Error al devolver el pedido al taller.");
+      return;
+    }
+  
+    // Prepare modal with pre-filled data
+    setInventoryForm({
+      ring_model: order.ring_model,
+      ring_size: order.ring_size,
+      ring_coating: order.ring_coating,
+      ring_stone: order.ring_stone
+    });
+    setShowInventoryModal(true);
+  };
+
   const getStoneInputs = () => {
     const model = formData.ring_name;
     const coating = formData.ring_coating.toLowerCase();
@@ -215,8 +347,10 @@ export default function OrderList() {
             <option value="Zafiro">Zafiro</option>
             <option value="Aguamarina">Aguamarina</option>
             <option value="Peridoto">Peridoto</option>
-            <option value="Ónix">Ónix</option>
-            <option value="Rubí">Rubí</option>
+            <option value="Prehennite">Prehennite</option>
+            <option value="Granate">Granate</option>
+            <option value="Blanco">Blanco</option>
+            <option value="Naranja">Naranja</option>
           </select>
         ))}
       </div>
@@ -346,6 +480,24 @@ export default function OrderList() {
                 zIndex: 999,
               }}
             >
+              {role === 'Admin' && (
+                <button
+                  onClick={() => {
+                    setShowMenu(false);
+                    window.location.href = '/admin';
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    width: '100%',
+                    textAlign: 'left',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Gestionar pedidos
+                </button>
+              )}
               <button
                 onClick={handleLogout}
                 style={{
@@ -410,7 +562,10 @@ export default function OrderList() {
 
           <select value={formData.ring_size} onChange={e => setFormData({ ...formData, ring_size: e.target.value })}>
             <option value="-">Seleccione talla</option>
-            {[...Array(8)].map((_, i) => <option key={i + 5} value={i + 5}>{i + 5}</option>)}
+            {[...Array(20)].map((_, i) => {
+              const size = i + 5;
+              return <option key={size} value={size}>{size}</option>;
+            })}
           </select>
 
           <input type="text" placeholder="Referencia de Shopify" value={formData.customer_ref} onChange={e => setFormData({ ...formData, customer_ref: e.target.value })} />
@@ -477,53 +632,175 @@ export default function OrderList() {
                 style={{ width: '96px', height: '96px', objectFit: 'cover', borderRadius: '12px' }}
               />
               <div>
-                <div style={{ fontWeight: 'bold' }}>{order.ring_model} ({order.ring_coating})</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontWeight: 'bold' }}>{order.ring_model} ({order.ring_coating})</span>
+                  {order.faulty_returned && (
+                    <span title="Este pedido fue devuelto por defecto" style={{ color: '#f59e0b', fontSize: '1.2rem' }}>
+                      ⚠️
+                    </span>
+                  )}
+                </div>
                 <div>{order.ring_stone}</div>
                 <div>Talla: {order.ring_size}</div>
                 {isExpanded && (
-                  <div style={{ marginTop: '10px' }}>
-                    <div><strong>Referencia de Shopify:</strong> {order.customer_ref || 'N/A'}</div>
-                    <div><strong>Referencia interna:</strong> {order.ring_ref || 'N/A'}</div>
-                    <div><strong>ID del pedido:</strong> {order.id}</div>
-                    <div><strong>Fecha del pedido:</strong> {new Date(order.order_date).toLocaleString()}</div>
-                  </div>
+                  role === 'Jeweller' ? (
+                    <div style={{ marginTop: '10px', fontSize: '0.9rem', lineHeight: '1.6' }}>
+                      <div><strong>Referencia interna:</strong> {order.ring_ref || 'N/A'}</div>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: '10px' }}>
+                      <div><strong>Referencia de Shopify:</strong> {order.customer_ref || 'N/A'}</div>
+                      <div><strong>Referencia interna:</strong> {order.ring_ref || 'N/A'}</div>
+                      <div><strong>ID del pedido:</strong> {order.id}</div>
+                      <div><strong>Fecha del pedido:</strong> {new Date(order.order_date).toLocaleString()}</div>
+                    </div>
+                  )
                 )}
               </div>
             </div>
-
+            
             {isExpanded && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                <div style={{
-                  backgroundColor: '#d1fae5',
-                  color: '#065f46',
-                  padding: '4px 12px',
-                  borderRadius: '6px',
+                
+                
+                
+                
+                
+                {/* Date Badge */}
+                <div className={getUrgencyClass(order.order_date,order.status)} style={{
+                  padding: '4px 10px',
+                  borderRadius: '8px',
+                  fontWeight: 'bold',
                   fontSize: '0.875rem'
                 }}>
-                  {order.stage}
+                  {new Date(order.order_date).toLocaleDateString()}
                 </div>
-                <div style={{
-                  backgroundColor: '#e0f2fe',
-                  color: '#0369a1',
-                  padding: '4px 12px',
-                  borderRadius: '6px',
-                  fontSize: '0.875rem'
-                }}>
-                  {order.status}
+            
+                {/* Stage and Status Badges side by side */}
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <div style={{
+                    backgroundColor: '#d1fae5',
+                    color: '#065f46',
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem'
+                  }}>
+                    {order.stage}
+                  </div>
+                  <div style={{
+                    backgroundColor: '#e0f2fe',
+                    color: '#0369a1',
+                    padding: '4px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.875rem'
+                  }}>
+                    {order.status}
+                  </div>
                 </div>
+            
+                {/* Action Button */}
                 {getActionButton(order)}
+            
+                {/* Report Fault Button */}
+                {['Embalaje'].includes(order.stage) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReportFault(order);
+                    }}
+                    style={{
+                      backgroundColor: '#f87171', // red
+                      color: 'white',
+                      padding: '8px 16px',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🚨 Reportar Error
+                  </button>
+                )}
+              </div>
+            )}
+            
+            {showInventoryModal && (
+              <div style={{
+                position: 'fixed',
+                top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 1000
+              }}>
+                <div style={{
+                  backgroundColor: 'white',
+                  padding: '24px',
+                  borderRadius: '12px',
+                  width: '90%',
+                  maxWidth: '400px'
+                }}>
+                  <h3 style={{ marginBottom: '16px' }}>📦 Guardar en Inventario</h3>
+            
+                  <select value={inventoryForm.ring_model} onChange={e => setInventoryForm({...inventoryForm, ring_model: e.target.value})}>
+                    {Object.keys(ringImageUrls).map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+            
+                  <select value={inventoryForm.ring_size} onChange={e => setInventoryForm({...inventoryForm, ring_size: e.target.value})}>
+                    {[...Array(8)].map((_, i) => (
+                      <option key={i + 5} value={i + 5}>{i + 5}</option>
+                    ))}
+                  </select>
+            
+                  <select value={inventoryForm.ring_coating} onChange={e => setInventoryForm({...inventoryForm, ring_coating: e.target.value})}>
+                    <option value="Oro">Oro</option>
+                    <option value="Plata">Plata</option>
+                  </select>
+            
+                  <input
+                    type="text"
+                    value={inventoryForm.ring_stone}
+                    onChange={e => setInventoryForm({...inventoryForm, ring_stone: e.target.value})}
+                    placeholder="Piedras (ej. Amatista & Zafiro)"
+                  />
+            
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
+                    <button onClick={() => setShowInventoryModal(false)}>Cancelar</button>
+                    <button
+                      style={{ backgroundColor: '#10b981', color: 'white', padding: '8px 16px', borderRadius: '6px', border: 'none' }}
+                      onClick={async () => {
+                        const { error: insertError } = await supabase
+                          .from('inventory')
+                          .insert([inventoryForm]);
+                        if (insertError) {
+                          alert("❌ Error al guardar en inventario.");
+                        } else {
+                          alert("📦 Anillo guardado en inventario.");
+                          setShowInventoryModal(false);
+                          fetchInventory();
+                        }
+                      }}
+                    >
+                      Guardar
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
-            <div className={getUrgencyClass(order.order_date)} style={{
-              marginLeft: '16px',
-              alignSelf: 'center',
-              padding: '8px 12px',
-              borderRadius: '8px',
-              fontSize: '0.875rem'
-            }}>
-              {new Date(order.order_date).toLocaleDateString()}
-            </div>
+            {!isExpanded && (
+              <div className={getUrgencyClass(order.order_date,order.status)} style={{
+                marginLeft: '16px',
+                alignSelf: 'center',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                fontSize: '0.875rem'
+              }}>
+                {new Date(order.order_date).toLocaleDateString()}
+              </div>
+            )}
           </div>
         );
       })}
