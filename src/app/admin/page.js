@@ -226,7 +226,7 @@ const AdminPage = () => {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', margin: '20px 0' }}>
-        <button onClick={handleAddClick} style={{ fontSize: '20px', border: tab === name ? '2px solid #10b981' : '1px solid #ccc', borderRadius: '8px',backgroundColor: tab === name ? '#ecfdf5' : 'white', padding: '8px 16px' }}>
+        <button onClick={handleAddClick} style={{ fontSize: '20px', border: '1px solid #ccc', borderRadius: '8px',backgroundColor: 'white', padding: '8px 16px' }}>
           ➕
         </button>
         {['Inventario', 'Pedidos'].map(name => (

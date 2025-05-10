@@ -661,11 +661,6 @@ export default function OrderList() {
             
             {isExpanded && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                
-                
-                
-                
-                
                 {/* Date Badge */}
                 <div className={getUrgencyClass(order.order_date,order.status)} style={{
                   padding: '4px 10px',
