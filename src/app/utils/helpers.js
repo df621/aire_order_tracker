@@ -18,5 +18,5 @@ export function generateRingRef(ringModel, orderDate, dailyCount) {
 }
 
 export function getImageUrl(ringModel) {
-  return `https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images//${ringModel}.png`;
+  return `https://yuxyqhdkerbpjrpbeynf.supabase.co/storage/v1/object/public/ring-images/${ringModel}.png`;
 }
