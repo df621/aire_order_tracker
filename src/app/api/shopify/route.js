@@ -36,7 +36,7 @@ const productIdToCoating = {
   9602206564691: 'Oro', //Susurro Oro
   9597118251347: 'Plata', //Ecos Plata
   9597117595987: 'Oro', //Ecos Oro
-  9597115531603: 'Plata' //Galerno Plata
+  9597115531603: 'Plata', //Galerno Plata
   9597113401683: 'Oro', //Poniente Oro 
   9597103702355: 'Plata', //Plasma Plata
   9596961292627: 'Plata', //Poniente Plata
