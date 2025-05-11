@@ -1,6 +1,6 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../../../lib/supabase';
 import { NextResponse } from 'next/server';
-import { generateRingRef, getImageUrl } from '@/app/utils/helpers';
+import { generateRingRef, getImageUrl } from '../../utils/helpers';
 
 // Normalize accented characters (e.g., "Bóreas" → "Boreas")
 function normalizeRingModel(name) {
