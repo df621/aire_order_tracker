@@ -2,57 +2,81 @@ import { supabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 import { generateRingRef, getImageUrl } from '@/app/utils/helpers';
 
-// Helper: Extract ring size from line item name (e.g. "Plasma Talla 18 Plata")
-function extractRingSizeFromName(name) {
-  const match = name.match(/Talla\s*(\d{1,2})/i);
-  return match ? match[1] : null;
-}
-
-// Helper: Extract coating from name (assumes "Plata" or "Oro" is included)
-function extractCoatingFromName(name) {
-  if (/plata/i.test(name)) return 'Plata';
-  if (/oro/i.test(name)) return 'Oro';
-  return '-';
-}
-
-// Helper: Extract ring model by removing "Talla" and coating from name
-function extractRingModelFromName(name) {
+// Normalize accented characters (e.g., "Bóreas" → "Boreas")
+function normalizeRingModel(name) {
   return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Remove accents
     .replace(/Talla\s*\d{1,2}/i, '')
     .replace(/Plata|Oro/gi, '')
     .trim();
 }
 
+// Extract ring size from variant title (e.g., "16 / Zafiro")
+function extractRingSize(variantTitle) {
+  const match = variantTitle?.match(/^(\d{1,2})/);
+  return match ? match[1] : '-';
+}
+
+// Extract stone from variant title
+function extractRingStone(variantTitle) {
+  const parts = variantTitle?.split('/') || [];
+  return parts[1]?.trim() || '';
+}
+
+// Map product_id to coating
+const productIdToCoating = {
+  9755329855827: 'Oro', //Eterno Oro 
+  9602265252179: 'Plata', //Soplo Plata
+  9602265121107: 'Oro', //Soplo Oro
+  9602260205907: 'Plata', //Coriolis Plata
+  9602251882835: 'Plata', //Bóreas Plata
+  9602247983443: 'Oro', //Coriolis Oro
+  9602207580499: 'Oro', //Aquilo Oro
+  9602206564691: 'Oro', //Susurro Oro
+  9597118251347: 'Plata', //Ecos Plata
+  9597117595987: 'Oro', //Ecos Oro
+  9597115531603: 'Plata' //Galerno Plata
+  9597113401683: 'Oro', //Poniente Oro 
+  9597103702355: 'Plata', //Plasma Plata
+  9596961292627: 'Plata', //Poniente Plata
+  9596957917523: 'Plata', //Susurro Plata
+  9596934291795: 'Oro', //Plasma Oro
+  9596927476051: 'Oro', //Bóreas Oro
+  9596921938259: 'Oro' //Galerno Oro 
+};
+
 export async function POST(request) {
   const rawBody = await request.text();
   const data = JSON.parse(rawBody);
-
   console.log('📦 Webhook received:', data);
 
   const lineItems = data.line_items || [];
 
   for (const item of lineItems) {
-    const ring_model = extractRingModelFromName(item.name);
-    const ring_size = extractRingSizeFromName(item.name);
-    const ring_coating = extractCoatingFromName(item.name);
+    const ring_model = normalizeRingModel(item.name);
+    const ring_size = extractRingSize(item.variant_title);
+    const ring_stone = extractRingStone(item.variant_title);
+    const ring_coating = productIdToCoating[item.product_id] || 'Plata';
 
-    const customer_ref = data.name; // e.g. "#1002"
+    const customer_ref = data.name || '-';
     const order_date = data.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
     const image_url = getImageUrl(ring_model);
 
-    const sameDayOrders = await supabase
+    const { count: orderCount } = await supabase
       .from('orders')
       .select('id', { count: 'exact' })
       .eq('order_date', order_date);
 
-    const orderCount = sameDayOrders.count || 0;
-    const ring_ref = generateRingRef(ring_model, order_date, orderCount);
+    const ring_ref = generateRingRef(ring_model, order_date, orderCount || 0);
+
+    const finalStone = ring_stone || ''; // You may insert default logic here if needed
 
     const newOrder = {
       ring_model,
       ring_size,
       ring_coating,
-      ring_stone: '', // Leave blank or implement logic if available
+      ring_stone: finalStone,
       customer_ref,
       order_date,
       stage: 'Taller',
@@ -66,7 +90,7 @@ export async function POST(request) {
     if (error) {
       console.error('❌ Error inserting order:', error.message);
     } else {
-      console.log('✅ Order added:', newOrder);
+      console.log('✅ Order saved to Supabase:', newOrder);
     }
   }
 
