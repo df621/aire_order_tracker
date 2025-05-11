@@ -1,88 +1,74 @@
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
-import { generateRingRef, getImageUrl } from '../../utils/helpers';
+import { generateRingRef, getImageUrl } from '@/app/utils/helpers';
+
+// Helper: Extract ring size from line item name (e.g. "Plasma Talla 18 Plata")
+function extractRingSizeFromName(name) {
+  const match = name.match(/Talla\s*(\d{1,2})/i);
+  return match ? match[1] : null;
+}
+
+// Helper: Extract coating from name (assumes "Plata" or "Oro" is included)
+function extractCoatingFromName(name) {
+  if (/plata/i.test(name)) return 'Plata';
+  if (/oro/i.test(name)) return 'Oro';
+  return '-';
+}
+
+// Helper: Extract ring model by removing "Talla" and coating from name
+function extractRingModelFromName(name) {
+  return name
+    .replace(/Talla\s*\d{1,2}/i, '')
+    .replace(/Plata|Oro/gi, '')
+    .trim();
+}
 
 export async function POST(request) {
   const rawBody = await request.text();
-  let payload;
+  const data = JSON.parse(rawBody);
 
-  try {
-    payload = JSON.parse(rawBody);
-  } catch (err) {
-    console.error('❌ Invalid JSON:', err);
-    return new NextResponse('Bad Request', { status: 400 });
-  }
+  console.log('📦 Webhook received:', data);
 
-  console.log('📦 Webhook received:', payload);
+  const lineItems = data.line_items || [];
 
-  try {
-    const item = payload.line_items?.[0];
-    const title = item?.title || '';
-    const variantTitle = item?.variant_title || '';
-    const createdAt = payload.created_at;
-    const customerRef = payload.name;
+  for (const item of lineItems) {
+    const ring_model = extractRingModelFromName(item.name);
+    const ring_size = extractRingSizeFromName(item.name);
+    const ring_coating = extractCoatingFromName(item.name);
 
-    // Extract model from title (e.g., "Aquilo" from "Aquilo - Size 8 - Oro")
-    const ring_model = title.split(' - ')[0];
-
-    // Extract size and coating from variant_title
-    const parts = variantTitle.split(' - ');
-    const ring_size = parts.find(p => p.match(/^\d{1,2}$/)) || '-';
-    const ring_coating = parts.find(p => /oro|plata/i.test(p))?.toLowerCase() === 'oro' ? 'Oro' : 'Plata';
-
-    // Default stones logic (like main app)
-    const coatingKey = ring_coating.toLowerCase();
-    const ringStoneDefaults = {
-      "Galerno": { count: 1, oro: ["Prehennite"], plata: ["Prehennite"] },
-      "Boreas": { count: 2, oro: ["Zafiro", "Aguamarina"], plata: ["Zafiro", "Aguamarina"] },
-      "Plasma": { count: 1, oro: ["Peridoto"], plata: ["Zafiro"] },
-      "Ecos": { count: 0 },
-      "Aquilo": { count: 2, oro: ["Peridoto", "Amatista"], plata: ["Peridoto", "Amatista"] },
-      "Coriolis": { count: 1, oro: ["Granate"], plata: ["Granate"] },
-      "Eterno": { count: 1, oro: ["Blanco"], plata: ["Blanco"] },
-      "Poniente": { count: 1, oro: ["Naranja"], plata: ["Naranja"] },
-      "Soplo": { count: 1, oro: ["Amatista"], plata: ["Zafiro"] },
-      "Susurro": { count: 1, oro: ["Aguamarina"], plata: ["Zafiro"] }
-    };
-
-    const defaults = ringStoneDefaults[ring_model]?.[coatingKey] || [];
-    const count = ringStoneDefaults[ring_model]?.count || 0;
-    const ring_stone = defaults.slice(0, count).join(' & ');
-
+    const customer_ref = data.name; // e.g. "#1002"
+    const order_date = data.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
     const image_url = getImageUrl(ring_model);
 
-    const today = new Date(createdAt || new Date()).toISOString().split('T')[0];
-    const { data: sameDayOrders } = await supabase
+    const sameDayOrders = await supabase
       .from('orders')
-      .select('*')
-      .eq('order_date', today);
+      .select('id', { count: 'exact' })
+      .eq('order_date', order_date);
 
-    const ring_ref = generateRingRef(ring_model, today, sameDayOrders?.length || 0);
+    const orderCount = sameDayOrders.count || 0;
+    const ring_ref = generateRingRef(ring_model, order_date, orderCount);
 
     const newOrder = {
       ring_model,
       ring_size,
       ring_coating,
-      ring_stone,
-      customer_ref: customerRef,
-      order_date: today,
-      ring_ref,
-      image_url,
+      ring_stone: '', // Leave blank or implement logic if available
+      customer_ref,
+      order_date,
       stage: 'Taller',
-      status: 'Pendiente'
+      status: 'Pendiente',
+      ring_ref,
+      image_url
     };
 
     const { error } = await supabase.from('orders').insert([newOrder]);
 
     if (error) {
-      console.error('❌ Supabase insert error:', error);
-      return new NextResponse('Failed to insert order', { status: 500 });
+      console.error('❌ Error inserting order:', error.message);
+    } else {
+      console.log('✅ Order added:', newOrder);
     }
-
-    console.log('✅ Order saved to Supabase:', newOrder);
-    return new NextResponse('Order inserted', { status: 200 });
-  } catch (err) {
-    console.error('❌ Unexpected error:', err);
-    return new NextResponse('Internal Server Error', { status: 500 });
   }
+
+  return new NextResponse('Webhook processed', { status: 200 });
 }
