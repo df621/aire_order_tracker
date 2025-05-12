@@ -53,30 +53,28 @@ export async function POST(request) {
 
   const lineItems = data.line_items || [];
 
-  for (const item of lineItems) {
-    const ring_model = normalizeRingModel(item.name);
-    const ring_size = extractRingSize(item.variant_title);
-    const ring_stone = extractRingStone(item.variant_title);
-    const ring_coating = productIdToCoating[item.product_id] || 'Plata';
-
-    const customer_ref = data.name || '-';
+  for (const item of data.line_items || []) {
+    const rawName = item.title || item.name || '';
+    const ring_model = normalizeText(rawName.trim());
+    const coating = getCoatingFromProductId(item.product_id);
+    const { ring_size, ring_stone } = extractSizeAndStone(item.variant_title);
+  
     const order_date = data.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
+    const customer_ref = data.name || 'N/A';
     const image_url = getImageUrl(ring_model);
-
-    const { count: orderCount } = await supabase
+  
+    const sameDayOrders = await supabase
       .from('orders')
       .select('id', { count: 'exact' })
       .eq('order_date', order_date);
-
-    const ring_ref = generateRingRef(ring_model, order_date, orderCount || 0);
-
-    const finalStone = ring_stone || ''; // You may insert default logic here if needed
-
+  
+    const ring_ref = generateRingRef(ring_model, order_date, sameDayOrders.count || 0);
+  
     const newOrder = {
       ring_model,
       ring_size,
-      ring_coating,
-      ring_stone: finalStone,
+      ring_stone,
+      ring_coating: coating,
       customer_ref,
       order_date,
       stage: 'Taller',
@@ -84,9 +82,8 @@ export async function POST(request) {
       ring_ref,
       image_url
     };
-
+  
     const { error } = await supabase.from('orders').insert([newOrder]);
-
     if (error) {
       console.error('❌ Error inserting order:', error.message);
     } else {
