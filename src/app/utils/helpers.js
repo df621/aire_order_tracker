@@ -26,18 +26,6 @@ function normalizeText(text) {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-// Extract coating from known productId map
-function getCoatingFromProductId(productId) {
-  const coatingMap = {
-    9596921938259: 'Oro',    // Galerno Oro
-    9596927476051: 'Plata',  // Boreas Plata
-    9596934291795: 'Plata',  // Plasma Plata
-    9602260205907: 'Plata',  // Coriolis Plata
-    // add more as needed
-  };
-  return coatingMap[productId] || '-';
-}
-
 // Extract ring size and stone from variant title like "10 / Amatista"
 function extractSizeAndStone(variantTitle) {
   if (!variantTitle) return { ring_size: '-', ring_stone: '' };

@@ -1,22 +1,6 @@
 import { supabase } from '../../../lib/supabase';
 import { NextResponse } from 'next/server';
-import { generateRingRef, getImageUrl } from '../../utils/helpers';
-
-// Normalize accented characters (e.g., "Bóreas" → "Boreas")
-function normalizeRingModel(name) {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove accents
-    .replace(/Talla\s*\d{1,2}/i, '')
-    .replace(/Plata|Oro/gi, '')
-    .trim();
-}
-
-// Extract ring size from variant title (e.g., "16 / Zafiro")
-function extractRingSize(variantTitle) {
-  const match = variantTitle?.match(/^(\d{1,2})/);
-  return match ? match[1] : '-';
-}
+import { generateRingRef, getImageUrl, normalizeText, extractSizeAndStone } from '../../utils/helpers';
 
 // Extract stone from variant title
 function extractRingStone(variantTitle) {
@@ -56,7 +40,7 @@ export async function POST(request) {
   for (const item of data.line_items || []) {
     const rawName = item.title || item.name || '';
     const ring_model = normalizeText(rawName.trim());
-    const coating = getCoatingFromProductId(item.product_id);
+    const coating = productIdToCoating[item.product_id] || 'Plata';
     const { ring_size, ring_stone } = extractSizeAndStone(item.variant_title);
   
     const order_date = data.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
