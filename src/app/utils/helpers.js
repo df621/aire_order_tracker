@@ -1,4 +1,4 @@
-const ringReference = {
+export const ringReference = {
   "Galerno": "001",
   "Boreas": "005",
   "Plasma": "006",
@@ -22,12 +22,12 @@ export function getImageUrl(ringModel) {
 }
 
 // Remove accents and normalize
-function normalizeText(text) {
+export function normalizeText(text) {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
 // Extract ring size and stone from variant title like "10 / Amatista"
-function extractSizeAndStone(variantTitle) {
+export function extractSizeAndStone(variantTitle) {
   if (!variantTitle) return { ring_size: '-', ring_stone: '' };
   const parts = variantTitle.split('/');
   const ring_size = parts[0]?.trim() || '-';
