@@ -3,21 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
-import { generateRingRef, getImageUrl } from '../utils/helpers';
-
-
-const ringStoneDefaults = {
-  "Galerno": { count: 1, oro: ["Prehennite"], plata: ["Prehennite"] },
-  "Boreas": { count: 2, oro: ["Zafiro", "Aguamarina"], plata: ["Zafiro", "Aguamarina"] },
-  "Plasma": { count: 1, oro: ["Peridoto"], plata: ["Zafiro"] },
-  "Ecos": { count: 0 }, // no stones
-  "Aquilo": { count: 2, oro: ["Peridoto", "Amatista"], plata: ["Peridoto", "Amatista"] },
-  "Coriolis": { count: 1, oro: ["Granate"], plata: ["Granate"] },
-  "Eterno": { count: 1, oro: ["Blanco"], plata: ["Blanco"] },
-  "Poniente": { count: 1, oro: ["Naranja"], plata: ["Naranja"] },
-  "Soplo": { count: 1, oro: ["Amatista"], plata: ["Zafiro"] },
-  "Susurro": { count: 1, oro: ["Aguamarina"], plata: ["Zafiro"] }
-};
+import { generateRingRef, getImageUrl, ringStoneDefaults } from '../utils/helpers';
 
 const allStones = ["Amatista", "Zafiro", "Aguamarina", "Peridoto", "Prehennite", "Granate", "Blanco", "Naranja"];
 

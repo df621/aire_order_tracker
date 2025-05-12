@@ -41,7 +41,7 @@ export async function POST(request) {
     const rawName = item.title || item.name || '';
     const ring_model = normalizeText(rawName.trim());
     const coating = productIdToCoating[item.product_id] || 'Plata';
-    const { ring_size, ring_stone } = extractSizeAndStone(item.variant_title);
+    const { ring_size, ring_stone } = extractSizeAndStone(item.variant_title, ring_model, coating);
   
     const order_date = data.created_at?.split('T')[0] || new Date().toISOString().split('T')[0];
     const customer_ref = data.name || 'N/A';
