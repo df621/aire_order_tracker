@@ -90,35 +90,80 @@ export default function OrderList() {
     ring_coating: '',
     ring_stone: ''
   });
-
-
+  
+  const checkInventoryAgainstOrders = async () => {
+    const updated = [];
+  
+    for (const order of orders) {
+      if (order.status !== 'Pendiente' || order.stage !== 'Taller') continue;
+  
+      const match = inventory.find(item =>
+        item.ring_model === order.ring_model &&
+        item.ring_size === order.ring_size &&
+        item.ring_coating === order.ring_coating &&
+        item.ring_stone === order.ring_stone
+      );
+  
+      if (match) {
+        // Update order in Supabase
+        await supabase
+          .from('orders')
+          .update({ stage: 'Embalaje', status: 'Recibido', from_inventory: true })
+          .eq('id', order.id);
+  
+        // Delete from inventory
+        await supabase
+          .from('inventory')
+          .delete()
+          .eq('id', match.id);
+  
+        updated.push(order.id);
+      }
+    }
+  
+    if (updated.length > 0) {
+      fetchOrders();  // Refresh view
+      fetchInventory();
+    }
+  };
+  
   useEffect(() => {
-    fetchOrders();
-    fetchInventory();
-  }, []);
+    if (role) {
+      Promise.all([fetchOrders(), fetchInventory()])
+        .then(() => {
+          checkInventoryAgainstOrders();
+        });
+    }
+  }, [role]);
   
   useEffect(() => {
     const fetchUserAndRole = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const {
+        data: { user },
+        error
+      } = await supabase.auth.getUser();
+  
+      if (error || !user) {
+        console.error('No user:', error);
         router.push('/login');
         return;
       }
-
-      const { data, error } = await supabase
+  
+      const { data, error: roleError } = await supabase
         .from('users')
         .select('role')
         .eq('id', user.id)
         .single();
-
-      if (error) {
-        console.error(error);
+  
+      if (roleError || !data?.role) {
+        console.error('No role found or error:', roleError);
         router.push('/login');
-      } else {
-        setRole(data.role);
+        return;
       }
+  
+      setRole(data.role);
     };
-
+  
     fetchUserAndRole();
   }, []);
 
@@ -127,13 +172,19 @@ export default function OrderList() {
       .from('orders')
       .select('*')
       .order('order_date', { ascending: true });
-
+  
     if (!error) {
       setOrders(data || []);
     } else {
       console.error('❌ Error en Supabase:', error.message);
     }
   };
+  
+  useEffect(() => {
+  if (orders.length > 0 && inventory.length > 0) {
+    checkInventoryAgainstOrders();
+  }
+}, [orders, inventory]);
 
   const updateOrder = async (id, updates) => {
     const order = orders.find(o => o.id === id);
@@ -164,6 +215,23 @@ export default function OrderList() {
     if (!error) {
       fetchOrders();
       setLastAction(null); // Clear after undo
+    }
+  };
+  
+  const handleInventoryNotFound = async (order) => {
+    const confirmReset = window.confirm("¿Estás seguro de que este pedido NO está en inventario?");
+    if (!confirmReset) return;
+  
+    const { error } = await supabase
+      .from('orders')
+      .update({ from_inventory: false, stage: 'Taller', status: 'Pendiente' })
+      .eq('id', order.id);
+  
+    if (error) {
+      alert("❌ No se pudo revertir el pedido.");
+    } else {
+      alert("🔁 Pedido devuelto al taller.");
+      fetchOrders();
     }
   };
 
@@ -211,6 +279,8 @@ export default function OrderList() {
     const image_url = ringImageUrls[formData.ring_name];
   
     if (matchingItem) {
+      if (order.from_inventory) return
+      if (order.status != 'Pendiente') return
       const newOrder = {
         ring_model,
         ring_size: formData.ring_size,
@@ -638,6 +708,24 @@ export default function OrderList() {
                     <span title="Este pedido fue devuelto por defecto" style={{ color: '#f59e0b', fontSize: '1.2rem' }}>
                       ⚠️
                     </span>
+                  )}
+                  {order.from_inventory && order.stage === 'Embalaje' && order.status === 'Recibido' && (
+                    <button
+                      title="Pedido desde inventario — Click si NO se encontró"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleInventoryNotFound(order);
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '1.3rem',
+                        cursor: 'pointer',
+                        marginLeft: '6px'
+                      }}
+                    >
+                      📦
+                    </button>
                   )}
                 </div>
                 <div>{order.ring_stone}</div>
